@@ -1,0 +1,16 @@
+{
+  "name": "youtubei-render-api",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "api/index.js",
+  "scripts": {
+    "start": "node api/index.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "youtubei.js": "^9.0.0"
+  }
+}
