@@ -12,5 +12,8 @@
   "dependencies": {
     "express": "^4.19.2",
     "youtubei.js": "latest"
+  },
+  "scripts": {
+    "postinstall": "curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux -o ./yt-dlp_linux && chmod +x ./yt-dlp_linux"
   }
 }
