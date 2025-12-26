@@ -3,9 +3,6 @@
   "version": "1.0.1",
   "type": "module",
   "main": "api/index.js",
-  "scripts": {
-    "start": "node api/index.js"
-  },
   "engines": {
     "node": ">=18"
   },
@@ -14,6 +11,7 @@
     "youtubei.js": "latest"
   },
   "scripts": {
+    "start": "node api/index.js",
     "postinstall": "curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux -o ./yt-dlp_linux && chmod +x ./yt-dlp_linux"
   }
 }
