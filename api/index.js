@@ -1,7 +1,12 @@
 import express from "express";
 import { Innertube, UniversalCache } from "youtubei.js";
+import { execFile } from "child_process";
+import path from "path";
 
 const app = express();
+const ytdlpPath = path.resolve(process.cwd(), 'yt-dlp_linux');
+const PROXY_URL = "http://ytproxy-siawaseok.duckdns.org:3007";
+
 
 app.use(express.json());
 
@@ -292,6 +297,72 @@ const applyChannelFilter = async (feed, sort) => {
     }
     return feed;
 };
+
+app.get('/stream', async (req, res) => {
+  const { id } = req.query;
+  if (!id) {
+    return res.status(400).json({ error: 'Missing video id' });
+  }
+
+  const youtubeUrl = `https://www.youtube.com/watch?v=${id}`;
+  const args = ['--proxy', PROXY_URL, '--dump-json', youtubeUrl];
+
+  execFile(ytdlpPath, args, (error, stdout, stderr) => {
+    if (error) {
+      console.error('yt-dlp error:', stderr);
+      return res.status(500).json({
+        error: 'yt-dlp failed',
+        details: stderr
+      });
+    }
+
+    try {
+      const info = JSON.parse(stdout);
+
+      // 映像+音声（mp4）
+      const combinedFormats = info.formats
+        .filter(f =>
+          f.vcodec !== 'none' &&
+          f.acodec !== 'none' &&
+          f.ext === 'mp4' &&
+          (f.protocol === 'https' || f.protocol === 'http')
+        )
+        .sort((a, b) => (b.height || 0) - (a.height || 0));
+
+      const streamingFormat = combinedFormats[0] || null;
+
+      // 音声のみ
+      const audioFormats = info.formats
+        .filter(f =>
+          f.vcodec === 'none' &&
+          f.acodec !== 'none' &&
+          (f.protocol === 'https' || f.protocol === 'http')
+        )
+        .sort((a, b) => (b.abr || 0) - (a.abr || 0));
+
+      const bestAudio =
+        audioFormats.find(f => f.ext === 'm4a') || audioFormats[0] || null;
+
+      res.json({
+        title: info.title,
+        duration: info.duration,
+        streamingUrl: streamingFormat?.url ?? null,
+        audioUrl: bestAudio?.url ?? null,
+        formats: combinedFormats.map(f => ({
+          quality: f.format_note || `${f.height}p`,
+          height: f.height,
+          container: f.ext,
+          url: f.url
+        }))
+      });
+
+    } catch (e) {
+      console.error('JSON parse error:', e);
+      res.status(500).json({ error: 'Failed to parse yt-dlp output' });
+    }
+  });
+});
+
 
 // -------------------------------------------------------------------
 // チャンネル API (/api/channel)
