@@ -51,35 +51,6 @@ app.get('/api/suggest', async (req, res) => {
     }
 });
 
-app.get('/api/stream/:videoId', async (req, res) => {
-  try {
-    const { videoId } = req.params;
-    if (!videoId) return res.status(400).json({ error: "Missing video id" });
-    
-    const targetUrl = `https://xeroxdwapi.vercel.app/api/video-info?videoId=${videoId}`;
-    
-    const response = await fetch(targetUrl);
-    res.status(response.status);
-    response.headers.forEach((val, key) => {
-      const lowerKey = key.toLowerCase();
-      if (['content-encoding', 'content-length', 'transfer-encoding', 'connection', 'access-control-allow-origin'].includes(lowerKey)) return;
-      res.setHeader(key, val);
-    });
-    if (!response.body) return res.end();
-    // @ts-ignore
-    const reader = response.body.getReader();
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      res.write(value);
-    }
-    res.end();
-  } catch (err) {
-    if (!res.headersSent) res.status(500).json({ error: err.message });
-    else res.end();
-  }
-});
-
 app.get('/api/video-proxy', async (req, res) => {
   const { url } = req.query;
   if (!url || typeof url !== 'string') return res.status(400).end();
