@@ -29,39 +29,29 @@ const createYoutube = async () => {
   return await Innertube.create(options);
 };
 
-app.get('/api/shorts', async (req, res) => {
+// --- 追加部分 ---
+app.get('/api/shortstdata', async (req, res) => {
   try {
     const youtube = await createYoutube();
-    
-    // ホームフィードを取得（ここにおすすめのショート棚が含まれている）
-    const homeFeed = await youtube.getHomeFeed();
-    
-    // 「ReelShelf（ショート棚）」を探す
-    // youtubei.jsのバージョンにより shelves か contents の中にある
-    const shortsShelf = homeFeed.shelves?.find(s => s.type === 'ReelShelf') 
-                     || homeFeed.contents?.find(c => c.type === 'ReelShelf');
+    const { id } = req.query;
 
-    if (!shortsShelf) {
-      return res.status(404).json({ error: "Shorts shelf not found in home feed." });
+    if (!id) {
+      return res.status(400).json({ error: "Missing video id" });
     }
 
-    // ショート動画のリストを取り出す
-    const items = shortsShelf.items || shortsShelf.contents || [];
+    // getInfo は動画のメタデータ、プレイヤー情報、関連動画など
+    // YouTubeの動画ページ（shorts含む）のほぼ全ての情報を取得します。
+    const info = await youtube.getInfo(id);
 
-    const videos = items.map(v => ({
-      id: v.id,
-      title: v.title?.text || v.title || "Short Video",
-      thumbnails: v.thumbnails || v.thumbnail || [],
-      view_count: v.view_count?.text || ""
-    }));
-
-    res.status(200).json({ videos });
+    // 何も整形せず、youtubei.js が返したオブジェクト全体をそのまま返します。
+    // ※内部に循環参照がある場合は自動でシリアライズ可能な範囲で出力されます。
+    res.status(200).json(info);
   } catch (err) {
-    console.error('Error in /api/shorts:', err);
+    console.error('Error in /api/shortstdata:', err);
     res.status(500).json({ error: err.message });
   }
 });
-
+// ----------------
 // -------------------------------------------------------------------
 // Helper / Proxy Endpoints
 // -------------------------------------------------------------------
