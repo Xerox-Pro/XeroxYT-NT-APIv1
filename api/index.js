@@ -29,43 +29,33 @@ const createYoutube = async () => {
   return await Innertube.create(options);
 };
 
-// -------------------------------------------------------------------
-// ショート動画のおすすめフィード取得 (/api/shorts)
-// -------------------------------------------------------------------
 app.get('/api/shorts', async (req, res) => {
   try {
     const youtube = await createYoutube();
-    const { continuation } = req.query;
+    
+    // ホームフィードを取得（ここにおすすめのショート棚が含まれている）
+    const homeFeed = await youtube.getHomeFeed();
+    
+    // 「ReelShelf（ショート棚）」を探す
+    // youtubei.jsのバージョンにより shelves か contents の中にある
+    const shortsShelf = homeFeed.shelves?.find(s => s.type === 'ReelShelf') 
+                     || homeFeed.contents?.find(c => c.type === 'ReelShelf');
 
-    let shortsFeed;
-
-    if (continuation) {
-      // 続きを取得する場合（フロントエンドから前回受け取ったtokenを渡す想定）
-      // youtubei.js の getShorts は内部的にステートレスなトークンでの継続もサポートしていますが、
-      // 基本的には前回のフィードオブジェクトが必要なため、簡易的な実装として再取得ロジックを組みます。
-      // ※より厳密には、前回のレスポンスをキャッシュする必要がありますが、
-      // ここでは新規に取得するか、APIの仕様に基づいた継続処理を行います。
-      shortsFeed = await youtube.getShorts(); 
-      // youtubei.jsのバージョンによっては getShorts(token) が使える場合もあります
-    } else {
-      // 初回取得
-      shortsFeed = await youtube.getShorts();
+    if (!shortsShelf) {
+      return res.status(404).json({ error: "Shorts shelf not found in home feed." });
     }
 
-    // shortsFeed.videos にショート動画のリストが入っています
-    const videos = shortsFeed.videos || [];
+    // ショート動画のリストを取り出す
+    const items = shortsShelf.items || shortsShelf.contents || [];
 
-    res.status(200).json({
-      videos: videos.map(v => ({
-        id: v.id,
-        title: v.title?.text || "",
-        thumbnails: v.thumbnails || [],
-        view_count: v.view_count?.text || "",
-        // ショート専用のメタデータがあればここに追加
-      })),
-      // 次の動画を読み込むためのトークン（無限スクロール用）
-      continuation: shortsFeed.has_continuation ? shortsFeed.continuation : null
-    });
+    const videos = items.map(v => ({
+      id: v.id,
+      title: v.title?.text || v.title || "Short Video",
+      thumbnails: v.thumbnails || v.thumbnail || [],
+      view_count: v.view_count?.text || ""
+    }));
+
+    res.status(200).json({ videos });
   } catch (err) {
     console.error('Error in /api/shorts:', err);
     res.status(500).json({ error: err.message });
